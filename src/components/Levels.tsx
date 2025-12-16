@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Papa from 'papaparse'
 import {
   LineChart,
@@ -7,6 +7,7 @@ import {
   YAxis,
   Tooltip,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
@@ -18,13 +19,15 @@ type LevelsProps = {
   height?: number | string
   /** Width of the chart container (pixels if number, or any CSS width string) */
   width?: number | string
+  /** Safe rowing level in metres. Values above this are considered unsafe to row. Default: 1.9 */
+  safeLevel?: number
 }
 
 type RawRow = {
   timestamp?: string
   height?: string
   type?: string
-  [k: string]: any
+  [k: string]: string | undefined
 }
 
 type Point = {
@@ -39,6 +42,7 @@ const DEFAULT_URL =
 
 const DEFAULT_HEIGHT = 640
 const DEFAULT_WIDTH = 1200
+const DEFAULT_SAFE_LEVEL = 1.9
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const ONE_YEAR_MS = 365 * MS_PER_DAY
 const TWO_WEEKS_MS = 14 * MS_PER_DAY
@@ -50,8 +54,7 @@ const PRESETS: { label: string; ms: number }[] = [
   { label: 'All', ms: Infinity },
 ]
 
-export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, width = DEFAULT_WIDTH }: LevelsProps) {
-  const [csvText, setCsvText] = useState<string | null>(null)
+export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, width = DEFAULT_WIDTH, safeLevel = DEFAULT_SAFE_LEVEL }: LevelsProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -85,16 +88,13 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
         const size = typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(raw).length : raw.length
         setCacheSize(size)
       }
-    } catch (err: any) {
-      // eslint-disable-next-line no-console
+    } catch (err: unknown) {
       console.warn('Levels: failed to read cache', err)
     }
 
     // If no cached data, do an initial fetch to populate the cache once.
     const rawNow = localStorage.getItem(storageKey)
-    if (!rawNow) {
-      doRefresh()
-    }
+    if (!rawNow) doRefresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
 
@@ -105,6 +105,16 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
     const cutoff = Date.now() - displayWindowMs
     return points.filter((p) => p.timestamp >= cutoff)
   }, [points, displayWindowMs])
+
+  // Latest measurement (from full cache) — used to determine safe/unsafe status
+  const latestPoint = useMemo(() => {
+    if (!points || points.length === 0) return null
+    return points.reduce((a, b) => (a.timestamp > b.timestamp ? a : b))
+  }, [points])
+
+  const latestValue = latestPoint ? (latestPoint.observed ?? latestPoint.forecast ?? null) : null
+  const isUnsafe = typeof latestValue === 'number' ? latestValue > safeLevel : false
+  const statusText = latestValue === null ? 'No recent measurement' : (isUnsafe ? `Unsafe to row (${latestValue.toFixed(2)} m)` : `Safe to row (${latestValue.toFixed(2)} m)`)
 
   // Parse CSV text into Point[] using the same header-detection logic
   const parseCsvToPoints = (text: string): Point[] => {
@@ -124,14 +134,14 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
     const keyHeight = findHeader(['height', 'level'])
     const keyType = findHeader(['type'])
 
-    // eslint-disable-next-line no-console
     console.debug('Levels: detected CSV headers ->', { keyTimestamp, keyHeight, keyType })
 
     const byTs = new Map<number, Point>()
     for (const row of parsed.data) {
-      const t = (keyTimestamp && (row as any)[keyTimestamp]) ?? row.timestamp ?? row.date ?? row.time ?? row.Timestamp
-      const h = (keyHeight && (row as any)[keyHeight]) ?? row.height ?? row.level ?? row.Height
-      const type = ((keyType && ((row as any)[keyType] as string)) ?? row.type ?? row.Type ?? '').toString().trim().toLowerCase()
+      const r = row as Record<string, string | undefined>
+      const t = (keyTimestamp && r[keyTimestamp]) ?? row.timestamp ?? row.date ?? row.time ?? row.Timestamp
+      const h = (keyHeight && r[keyHeight]) ?? row.height ?? row.level ?? row.Height
+      const type = ((keyType && (r[keyType] as string | undefined)) ?? row.type ?? row.Type ?? '').toString().trim().toLowerCase()
 
       if (!t || !h) continue
       const ts = Date.parse(t.toString())
@@ -167,14 +177,12 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
       const meta = { lastRefresh: new Date().toISOString(), count: pts.length, sizeBytes: size }
       try {
         localStorage.setItem(`${storageKey}:meta`, JSON.stringify(meta))
-      } catch (err: any) {
-        // eslint-disable-next-line no-console
+      } catch (err: unknown) {
         console.warn('Levels: failed to save cache meta', err)
       }
       setLastRefresh(meta.lastRefresh)
       setCacheSize(meta.sizeBytes)
-    } catch (err: any) {
-      // eslint-disable-next-line no-console
+    } catch (err: unknown) {
       console.warn('Levels: failed to save cache', err)
     }
   }
@@ -216,7 +224,6 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
       const r = await fetch(url)
       if (!r.ok) throw new Error(`Failed to fetch CSV: ${r.status}`)
       const text = await r.text()
-      setCsvText(text)
 
       const incoming = parseCsvToPoints(text)
       // Use functional update to ensure we merge with the latest `points`.
@@ -227,7 +234,7 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
         saveCache(pruned)
         return pruned
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(String(err))
     } finally {
       setRefreshing(false)
@@ -257,16 +264,33 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   return (
     <div style={{ width: cssWidth, height: cssHeight }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div>
-          Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              aria-hidden
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: isUnsafe ? '#E53935' : '#16A34A',
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ fontWeight: 500 }}>{statusText}</span>
+          </div>
+          <div>
+            Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6, marginRight: 8 }} role="tablist" aria-label="Display window">
             {PRESETS.map((p) => (
               <button
                 key={p.label}
+                type="button"
+                role="tab"
                 onClick={() => setDisplayWindowMs(p.ms)}
-                aria-pressed={p.ms === displayWindowMs}
+                tabIndex={0}
                 style={{
                   padding: '6px 8px',
                   border: p.ms === displayWindowMs ? '1px solid #111' : '1px solid #ddd',
@@ -285,6 +309,12 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
+          <ReferenceLine
+            y={safeLevel}
+            stroke="#0f9d58"
+            strokeDasharray="4 4"
+            label={{ position: 'right', value: `Safe rowing level (${safeLevel} m)` }}
+          />
           <XAxis
             dataKey="timestamp"
             type="number"
@@ -299,7 +329,7 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
           />
           <Tooltip
             labelFormatter={(label) => new Date(label as number).toLocaleString()}
-            formatter={(value: any, name: string) => [value, name]}
+            formatter={(value: number | string | undefined, name?: string | undefined) => [value ?? '', name ?? '']}
           />
           <Legend />
 

@@ -100,4 +100,8 @@ Display window control:
 
 - There's a control above the chart that lets you change the displayed window: **1d**, **7d**, **14d**, **30d**, or **All** (shows all cached rows, up to the 1-year cache limit). The selected window affects only the chart view — cached data remains intact.
 
+Safe rowing level:
+
+- The chart shows a horizontal **Safe rowing level** (default **1.9 m**) as a dashed line and a status indicator (Safe / Unsafe) based on the most recent measurement. You can override the level by passing the `safeLevel` prop to the `Levels` component.
+
 
