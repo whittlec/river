@@ -87,4 +87,8 @@ Props:
 - `url?: string` — override the CSV URL (defaults to the station CSV for 8208)
 - `height?: number | string` — set chart height (pixels if number)
 - `width?: number | string` — set chart width (pixels if number)
+Caching:
+- The component caches parsed data in `localStorage` (key derived from the CSV URL). The chart will use cached data by default and you can click **Refresh from server** to pull new CSV rows and merge them into the cache. When refreshing, observed rows overwrite forecast-only rows for the same timestamp.
+UI indicators:
+- The component now shows **Last refresh** (time) and **Cache** (approximate size in KB) next to the timestamp count.
 
