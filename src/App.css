@@ -1,8 +1,14 @@
+:root, #root, body, html {
+  height: 100%;
+}
+
 #root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 1rem;
 }
 
 .logo {
@@ -36,6 +42,18 @@
 .card {
   padding: 2em;
 }
+
+.appHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.appTitle { margin: 0 }
+
+.mainContent { flex: 1 1 auto; display: flex; align-items: stretch }
 
 .read-the-docs {
   color: #888;

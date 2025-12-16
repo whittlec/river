@@ -3,11 +3,17 @@ import Levels from './components/Levels'
 
 function App() {
   return (
-    <>
-
-      <h2>River Levels</h2>
-      <Levels />
-    </>
+    <div id="app-root">
+      <header className="appHeader">
+        <h1 className="appTitle">River Levels</h1>
+        <div>
+          <small>Realtime river levels and short-term forecasts</small>
+        </div>
+      </header>
+      <main className="mainContent">
+        <Levels />
+      </main>
+    </div>
   )
 }
 

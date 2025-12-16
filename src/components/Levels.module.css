@@ -1,0 +1,56 @@
+.container {
+  width: 100%;
+  height: 640px; /* default height */
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.safe { background: #16A34A }
+.unsafe { background: #E53935 }
+
+.statusText { font-weight: 500 }
+
+.info { color: inherit }
+
+.presetList { display: flex; gap: 6px; margin-right: 8px }
+.presetButton {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  background: white;
+  color: black;
+  cursor: pointer;
+}
+.presetButtonActive { border: 1px solid #111; background: #111; color: white }
+
+.refreshButton { margin-right: 8px }
+
+.rightGroup { display: flex; align-items: center; gap: 8px }
+
+.emptyState { margin-top: 8px }
+
+.errorText { color: #e53935; font-weight: 700 }

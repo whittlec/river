@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
+import styles from './Levels.module.css'
 
 type LevelsProps = {
   /** CSV URL to fetch. Defaults to the Environment Agency station CSV for station 8208 */
@@ -40,8 +41,6 @@ type Point = {
 const DEFAULT_URL =
   'https://check-for-flooding.service.gov.uk/station-csv/8208'
 
-const DEFAULT_HEIGHT = 640
-const DEFAULT_WIDTH = 1200
 const DEFAULT_SAFE_LEVEL = 1.9
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const ONE_YEAR_MS = 365 * MS_PER_DAY
@@ -54,7 +53,7 @@ const PRESETS: { label: string; ms: number }[] = [
   { label: 'All', ms: Infinity },
 ]
 
-export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, width = DEFAULT_WIDTH, safeLevel = DEFAULT_SAFE_LEVEL }: LevelsProps) {
+export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEVEL }: LevelsProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -243,18 +242,17 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   }
 
   if (loading) return <div>Loading levels…</div>
-  if (error) return <div style={{ color: 'red' }}>Error loading CSV: {error}</div>
+  if (error) return <div className={styles.emptyState} aria-live="assertive">Error loading CSV: <strong className={styles.errorText}>{error}</strong></div>
   if (data.length === 0) return (
-    <div>
+    <div className={styles.emptyState}>
       <div>No data (CSV may be empty or in an unexpected format)</div>
-      <div style={{ marginTop: 8 }}>
+      <div className={styles.emptyState}>
         <button onClick={() => doRefresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
       </div>
     </div>
   )
 
-  const cssHeight = typeof height === 'number' ? `${height}px` : height
-  const cssWidth = typeof width === 'number' ? `${width}px` : width
+  // For app usage we use CSS to size the component; props are optional
 
   const fmtLastRefresh = lastRefresh ? new Date(lastRefresh).toLocaleString() : 'never'
   const fmtCacheSize = cacheSize && cacheSize > 0 ? `${Math.round(cacheSize / 1024)} KB` : '0 KB'
@@ -262,28 +260,19 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   const currentWindowLabel = PRESETS.find((p) => p.ms === displayWindowMs)?.label ?? (isFinite(displayWindowMs) ? `${Math.round(displayWindowMs / MS_PER_DAY)}d` : 'All')
 
   return (
-    <div style={{ width: cssWidth, height: cssHeight }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              aria-hidden
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 999,
-                background: isUnsafe ? '#E53935' : '#16A34A',
-                display: 'inline-block',
-              }}
-            />
-            <span style={{ fontWeight: 500 }}>{statusText}</span>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div className={styles.leftGroup}>
+          <div className={styles.statusRow}>
+            <span aria-hidden className={`${styles.statusDot} ${isUnsafe ? styles.unsafe : styles.safe}`} />
+            <span className={styles.statusText}>{statusText}</span>
           </div>
-          <div>
+          <div className={styles.info}>
             Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 6, marginRight: 8 }} role="tablist" aria-label="Display window">
+        <div className={styles.rightGroup}>
+          <div className={styles.presetList} role="tablist" aria-label="Display window">
             {PRESETS.map((p) => (
               <button
                 key={p.label}
@@ -291,19 +280,13 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
                 role="tab"
                 onClick={() => setDisplayWindowMs(p.ms)}
                 tabIndex={0}
-                style={{
-                  padding: '6px 8px',
-                  border: p.ms === displayWindowMs ? '1px solid #111' : '1px solid #ddd',
-                  background: p.ms === displayWindowMs ? '#111' : 'white',
-                  color: p.ms === displayWindowMs ? 'white' : 'black',
-                  cursor: 'pointer',
-                }}
+                className={`${styles.presetButton} ${p.ms === displayWindowMs ? styles.presetButtonActive : ''}`}
               >
                 {p.label}
               </button>
             ))}
           </div>
-          <button onClick={() => doRefresh()} disabled={refreshing} style={{ marginRight: 8 }}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
+          <button onClick={() => doRefresh()} disabled={refreshing} className={styles.refreshButton}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
         </div>
       </div>
       <ResponsiveContainer>
