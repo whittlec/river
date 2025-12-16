@@ -324,7 +324,7 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
           />
           <YAxis
             dataKey={(d: Point) => (d.observed ?? d.forecast) as number}
-            domain={["auto", "auto"]}
+            domain={[0, 'auto']}
             allowDataOverflow={false}
           />
           <Tooltip
