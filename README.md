@@ -78,12 +78,11 @@ This project includes a `Levels` React component that fetches the Environment Ag
 
 Quick start:
 
-- Install deps: `npm install`
-- Start dev server: `npm run dev`
-- Open `http://localhost:5173` and you should see the Levels chart on the main page.
 
-Props:
-- `url?: string` — override the CSV URL (defaults to the station CSV for 8208)
+
+Serving from a subpath
+
+- All generated asset URLs and the manifest are now relative (e.g., `manifest.webmanifest`, `./icons/icon-192.svg`), so the built `dist/` can be served from a subpath (for example GitHub Pages at `https://<user>.github.io/<repo>/`). The service worker and its scope are also registered relative to the page to support subpath hosting.
 - `url?: string` — override the CSV URL (defaults to the station CSV for 8208)
 - `height?: number | string` — set chart height (pixels if number)
 - `width?: number | string` — set chart width (pixels if number)
