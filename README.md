@@ -91,4 +91,7 @@ Caching:
 - The component caches parsed data in `localStorage` (key derived from the CSV URL). The chart will use cached data by default and you can click **Refresh from server** to pull new CSV rows and merge them into the cache. When refreshing, observed rows overwrite forecast-only rows for the same timestamp.
 UI indicators:
 - The component now shows **Last refresh** (time) and **Cache** (approximate size in KB) next to the timestamp count.
+Persistence:
+ - The cache is persisted in `localStorage` and will be preserved across full page reloads (the component loads cached data on mount). Use **Refresh from server** to merge new rows without losing the existing cached data.
+
 

@@ -92,7 +92,7 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
     // previous refreshes and merges. If you want to preview an unmerged
     // CSV, use the Refresh button.
     return points
-  }, [csvText])
+  }, [points])
 
   // Parse CSV text into Point[] using the same header-detection logic
   const parseCsvToPoints = (text: string): Point[] => {
@@ -202,9 +202,12 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
       setCsvText(text)
 
       const incoming = parseCsvToPoints(text)
-      const merged = mergePoints(points, incoming)
-      setPoints(merged)
-      saveCache(merged)
+      // Use functional update to ensure we merge with the latest `points`
+      setPoints((prev) => {
+        const merged = mergePoints(prev, incoming)
+        saveCache(merged)
+        return merged
+      })
     } catch (err: any) {
       setError(String(err))
     } finally {
