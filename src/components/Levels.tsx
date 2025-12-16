@@ -39,6 +39,16 @@ const DEFAULT_URL =
 
 const DEFAULT_HEIGHT = 640
 const DEFAULT_WIDTH = 1200
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const ONE_YEAR_MS = 365 * MS_PER_DAY
+const TWO_WEEKS_MS = 14 * MS_PER_DAY
+const PRESETS: { label: string; ms: number }[] = [
+  { label: '1d', ms: 1 * MS_PER_DAY },
+  { label: '7d', ms: 7 * MS_PER_DAY },
+  { label: '14d', ms: TWO_WEEKS_MS },
+  { label: '30d', ms: 30 * MS_PER_DAY },
+  { label: 'All', ms: Infinity },
+]
 
 export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, width = DEFAULT_WIDTH }: LevelsProps) {
   const [csvText, setCsvText] = useState<string | null>(null)
@@ -48,6 +58,7 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   const [points, setPoints] = useState<Point[]>([])
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
   const [cacheSize, setCacheSize] = useState<number | null>(null)
+  const [displayWindowMs, setDisplayWindowMs] = useState<number>(TWO_WEEKS_MS)
 
   const storageKey = `levels-cache:${url}`
 
@@ -88,11 +99,12 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   }, [url])
 
   const data: Point[] = useMemo(() => {
-    // The display data comes from the in-memory cached points so it reflects
-    // previous refreshes and merges. If you want to preview an unmerged
-    // CSV, use the Refresh button.
-    return points
-  }, [points])
+    // Show only the selected display window in the chart UI; keep up to a
+    // year's data in cache.
+    if (!isFinite(displayWindowMs)) return points
+    const cutoff = Date.now() - displayWindowMs
+    return points.filter((p) => p.timestamp >= cutoff)
+  }, [points, displayWindowMs])
 
   // Parse CSV text into Point[] using the same header-detection logic
   const parseCsvToPoints = (text: string): Point[] => {
@@ -138,6 +150,11 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
     }
 
     return Array.from(byTs.values()).sort((a, b) => a.timestamp - b.timestamp)
+  }
+
+  const prunePoints = (pts: Point[], maxAgeMs: number) => {
+    const cutoff = Date.now() - maxAgeMs
+    return pts.filter((p) => p.timestamp >= cutoff)
   }
 
   const saveCache = (pts: Point[]) => {
@@ -202,11 +219,13 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
       setCsvText(text)
 
       const incoming = parseCsvToPoints(text)
-      // Use functional update to ensure we merge with the latest `points`
+      // Use functional update to ensure we merge with the latest `points`.
+      // After merging, prune to keep at most one year's worth of data.
       setPoints((prev) => {
         const merged = mergePoints(prev, incoming)
-        saveCache(merged)
-        return merged
+        const pruned = prunePoints(merged, ONE_YEAR_MS)
+        saveCache(pruned)
+        return pruned
       })
     } catch (err: any) {
       setError(String(err))
@@ -233,13 +252,33 @@ export default function Levels({ url = DEFAULT_URL, height = DEFAULT_HEIGHT, wid
   const fmtLastRefresh = lastRefresh ? new Date(lastRefresh).toLocaleString() : 'never'
   const fmtCacheSize = cacheSize && cacheSize > 0 ? `${Math.round(cacheSize / 1024)} KB` : '0 KB'
 
+  const currentWindowLabel = PRESETS.find((p) => p.ms === displayWindowMs)?.label ?? (isFinite(displayWindowMs) ? `${Math.round(displayWindowMs / MS_PER_DAY)}d` : 'All')
+
   return (
     <div style={{ width: cssWidth, height: cssHeight }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div>
-          Showing <strong>{data.length}</strong> timestamps • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
+          Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6, marginRight: 8 }} role="tablist" aria-label="Display window">
+            {PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setDisplayWindowMs(p.ms)}
+                aria-pressed={p.ms === displayWindowMs}
+                style={{
+                  padding: '6px 8px',
+                  border: p.ms === displayWindowMs ? '1px solid #111' : '1px solid #ddd',
+                  background: p.ms === displayWindowMs ? '#111' : 'white',
+                  color: p.ms === displayWindowMs ? 'white' : 'black',
+                  cursor: 'pointer',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <button onClick={() => doRefresh()} disabled={refreshing} style={{ marginRight: 8 }}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
         </div>
       </div>

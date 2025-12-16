@@ -94,4 +94,10 @@ UI indicators:
 Persistence:
  - The cache is persisted in `localStorage` and will be preserved across full page reloads (the component loads cached data on mount). Use **Refresh from server** to merge new rows without losing the existing cached data.
 
+Data windowing:
+- When refreshing, the component will keep at most **1 year** of merged data in the cache (older rows are discarded). The chart itself displays only the **last 2 weeks** of data for clarity.
+Display window control:
+
+- There's a control above the chart that lets you change the displayed window: **1d**, **7d**, **14d**, **30d**, or **All** (shows all cached rows, up to the 1-year cache limit). The selected window affects only the chart view — cached data remains intact.
+
 
