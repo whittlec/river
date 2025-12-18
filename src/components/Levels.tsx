@@ -106,14 +106,17 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   }, [points, displayWindowMs])
 
   // Latest measurement (from full cache) — used to determine safe/unsafe status
-  const latestPoint = useMemo(() => {
-    if (!points || points.length === 0) return null
-    return points.reduce((a, b) => (a.timestamp > b.timestamp ? a : b))
+  // Use the latest *observed* measurement to decide safe/unsafe.
+  // Forecasts should not be used for safety decisions.
+  const latestObservedPoint = useMemo(() => {
+    const observed = points.filter((p) => typeof p.observed === 'number')
+    if (observed.length === 0) return null
+    return observed.reduce((a, b) => (a.timestamp > b.timestamp ? a : b))
   }, [points])
 
-  const latestValue = latestPoint ? (latestPoint.observed ?? latestPoint.forecast ?? null) : null
-  const isUnsafe = typeof latestValue === 'number' ? latestValue > safeLevel : false
-  const statusText = latestValue === null ? 'No recent measurement' : (isUnsafe ? `Unsafe to row (${latestValue.toFixed(2)} m)` : `Safe to row (${latestValue.toFixed(2)} m)`)
+  const latestObservedValue = latestObservedPoint ? (latestObservedPoint.observed ?? null) : null
+  const isUnsafe = typeof latestObservedValue === 'number' ? latestObservedValue > safeLevel : false
+  const statusText = latestObservedValue === null ? 'No recent observed measurement' : (isUnsafe ? `Unsafe to row (${latestObservedValue.toFixed(2)} m)` : `Safe to row (${latestObservedValue.toFixed(2)} m)`)
 
   // Parse CSV text into Point[] using the same header-detection logic
   const parseCsvToPoints = (text: string): Point[] => {
