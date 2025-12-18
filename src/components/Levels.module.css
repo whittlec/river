@@ -54,3 +54,12 @@
 .emptyState { margin-top: 8px }
 
 .errorText { color: #e53935; font-weight: 700 }
+
+.runtimeError {
+  margin-top: 8px;
+  color: #fff;
+  background: #b00020;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}

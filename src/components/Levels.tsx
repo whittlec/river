@@ -57,6 +57,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [points, setPoints] = useState<Point[]>([])
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
   const [cacheSize, setCacheSize] = useState<number | null>(null)
@@ -97,6 +98,27 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
 
+  // Capture runtime errors so they are visible in the UI for debugging
+  useEffect(() => {
+    const onError = (ev: ErrorEvent) => {
+      const msg = `${ev.message} at ${ev.filename}:${ev.lineno}:${ev.colno}`
+      console.error('Levels runtime error:', msg)
+      setRuntimeError(msg)
+    }
+    const onRejection = (ev: PromiseRejectionEvent) => {
+      const reason = ev.reason ? (ev.reason.stack || ev.reason.message || String(ev.reason)) : 'Unknown'
+      const msg = `UnhandledRejection: ${reason}`
+      console.error('Levels unhandled rejection:', msg)
+      setRuntimeError(msg)
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onRejection as any)
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onRejection as any)
+    }
+  }, [])
+
   const data: Point[] = useMemo(() => {
     // Show only the selected display window in the chart UI; keep up to a
     // year's data in cache.
@@ -131,6 +153,25 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     if (ticks.length === 0) ticks.push(first)
     return ticks
   }, [data])
+
+  // Y axis ticks at 0.5 increments based on visible data range (min 0)
+  const yTicks = useMemo(() => {
+    const vals: number[] = []
+    for (const p of data) {
+      if (typeof p.observed === 'number') vals.push(p.observed)
+      if (typeof p.forecast === 'number') vals.push(p.forecast)
+    }
+    const maxVal = vals.length > 0 ? Math.max(...vals) : safeLevel
+    const minTick = 0
+    const maxTick = Math.ceil((maxVal ?? DEFAULT_SAFE_LEVEL) * 2) / 2
+    const ticks: number[] = []
+    for (let v = minTick; v <= maxTick + 1e-9; v += 0.5) {
+      ticks.push(Number(v.toFixed(2)))
+      if (ticks.length > 200) break
+    }
+    if (ticks.length === 1) ticks.push(ticks[0] + 0.5)
+    return ticks
+  }, [data, safeLevel])
 
   // Latest measurement (from full cache) — used to determine safe/unsafe status
   // Use the latest *observed* measurement to decide safe/unsafe.
@@ -285,6 +326,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   // For app usage we use CSS to size the component; props are optional
 
   const fmtLastRefresh = lastRefresh ? new Date(lastRefresh).toLocaleString() : 'never'
+  const fmtCacheSize = cacheSize && cacheSize > 0 ? `${Math.round(cacheSize / 1024)} KB` : '0 KB'
 
   const currentWindowLabel = PRESETS.find((p) => p.ms === displayWindowMs)?.label ?? (isFinite(displayWindowMs) ? `${Math.round(displayWindowMs / MS_PER_DAY)}d` : 'All')
 
@@ -317,6 +359,9 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     )
   }
 
+  // Y axis ticks at 0.5 increments based on visible data range (min 0)
+  
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -325,8 +370,13 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             <span aria-hidden className={`${styles.statusDot} ${isUnsafe ? styles.unsafe : styles.safe}`} />
             <span className={styles.statusText}>{statusText}</span>
           </div>
+          {runtimeError && (
+            <div role="alert" className={styles.runtimeError}>
+              Runtime error: <strong>{runtimeError}</strong>
+            </div>
+          )}
           <div className={styles.info}>
-            Last refresh: <strong>{fmtLastRefresh}</strong>
+            Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong> • Cache: <strong>{fmtCacheSize}</strong>
           </div>
         </div>
         <div className={styles.rightGroup}>
@@ -367,6 +417,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
           <YAxis
             dataKey={(d: Point) => (d.observed ?? d.forecast) as number}
             domain={[0, 'auto']}
+            ticks={yTicks}
             allowDataOverflow={false}
           />
           <Tooltip content={(props) => <CustomTooltip {...props} safeLevel={safeLevel} />} />
