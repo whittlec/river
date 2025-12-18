@@ -277,7 +277,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     <div className={styles.emptyState}>
       <div>No data (CSV may be empty or in an unexpected format)</div>
       <div className={styles.emptyState}>
-        <button onClick={() => doRefresh()} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
+        <button onClick={() => doRefresh()} disabled={refreshing}>{refreshing ? 'Updating…' : 'Update'}</button>
       </div>
     </div>
   )
@@ -344,7 +344,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
               </button>
             ))}
           </div>
-          <button onClick={() => doRefresh()} disabled={refreshing} className={styles.refreshButton}>{refreshing ? 'Refreshing…' : 'Refresh from server'}</button>
+          <button onClick={() => doRefresh()} disabled={refreshing} className={styles.refreshButton}>{refreshing ? 'Updating…' : 'Update'}</button>
         </div>
       </div>
       <ResponsiveContainer>
