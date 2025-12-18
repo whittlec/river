@@ -105,6 +105,33 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     return points.filter((p) => p.timestamp >= cutoff)
   }, [points, displayWindowMs])
 
+  // Compute one tick per day (UTC midnight) for the X axis from the visible data
+  const dailyTicks = useMemo(() => {
+    if (!data || data.length === 0) return [] as number[]
+    const first = data[0].timestamp
+    const last = data[data.length - 1].timestamp
+
+    // Find UTC midnight at or before `first`
+    const startDate = new Date(first)
+    let cur = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate())
+
+    // If the first data point is after the midnight we included, keep that midnight
+    // If the data point is earlier than that midnight (unlikely), step back one day
+    if (cur > first) cur -= MS_PER_DAY
+
+    const ticks: number[] = []
+    // Guard against pathological ranges by limiting to 366 days
+    let guard = 0
+    while (cur <= last && guard < 366) {
+      ticks.push(cur)
+      cur += MS_PER_DAY
+      guard++
+    }
+    // Ensure last tick covers the end of the domain if nothing landed exactly on it
+    if (ticks.length === 0) ticks.push(first)
+    return ticks
+  }, [data])
+
   // Latest measurement (from full cache) — used to determine safe/unsafe status
   // Use the latest *observed* measurement to decide safe/unsafe.
   // Forecasts should not be used for safety decisions.
@@ -262,6 +289,35 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
 
   const currentWindowLabel = PRESETS.find((p) => p.ms === displayWindowMs)?.label ?? (isFinite(displayWindowMs) ? `${Math.round(displayWindowMs / MS_PER_DAY)}d` : 'All')
 
+  // Custom tooltip: show observed/forecast values for the hovered point and
+  // whether that point (value) is safe to row relative to the `safeLevel`.
+  function CustomTooltip({ active, payload, label, safeLevel }: any & { safeLevel: number }) {
+    if (!active || !payload || payload.length === 0) return null
+    const point: Point = payload[0].payload
+    const ts = (label as number) ?? point.timestamp
+    const dateStr = new Date(ts).toLocaleString()
+    const obs = typeof point.observed === 'number' ? point.observed : null
+    const fc = typeof point.forecast === 'number' ? point.forecast : null
+    const val = obs ?? fc ?? null
+    const isPointUnsafe = typeof val === 'number' ? val > safeLevel : null
+
+    return (
+      <div className={styles.tooltipBox}>
+        <div className={styles.tooltipRow}><strong>{dateStr}</strong></div>
+        {obs !== null && <div className={styles.tooltipRow}>Observed: <strong>{obs.toFixed(2)} m</strong></div>}
+        {fc !== null && <div className={styles.tooltipRow}>Forecast: <strong>{fc.toFixed(2)} m</strong></div>}
+        {val === null ? (
+          <div className={styles.tooltipRow}>No measurement</div>
+        ) : (
+          <div className={styles.tooltipRow}>
+            <span aria-hidden className={`${styles.statusDot} ${isPointUnsafe ? styles.unsafe : styles.safe}`} />
+            <span>{isPointUnsafe ? `Unsafe to row (${val.toFixed(2)} m)` : `Safe to row (${val.toFixed(2)} m)`}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -305,7 +361,8 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             dataKey="timestamp"
             type="number"
             domain={["dataMin", "dataMax"]}
-            tickFormatter={(ts) => new Date(ts as number).toLocaleString()}
+            ticks={dailyTicks}
+            tickFormatter={(ts) => new Date(ts as number).toLocaleDateString()}
             scale="time"
           />
           <YAxis
@@ -313,10 +370,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             domain={[0, 'auto']}
             allowDataOverflow={false}
           />
-          <Tooltip
-            labelFormatter={(label) => new Date(label as number).toLocaleString()}
-            formatter={(value: number | string | undefined, name?: string | undefined) => [value ?? '', name ?? '']}
-          />
+          <Tooltip content={(props) => <CustomTooltip {...props} safeLevel={safeLevel} />} />
           <Legend />
 
           <Line
