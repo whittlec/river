@@ -10,6 +10,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   CartesianGrid,
+  ReferenceArea,
 } from 'recharts'
 import styles from './Levels.module.css'
 
@@ -172,6 +173,32 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     if (ticks.length === 1) ticks.push(ticks[0] + 0.5)
     return ticks
   }, [data, safeLevel])
+
+  // Calculate weekend ranges for background shading
+  const weekendAreas = useMemo(() => {
+    if (data.length === 0) return []
+    const first = data[0].timestamp
+    const last = data[data.length - 1].timestamp
+
+    // Start searching from a week before the first point to catch overlapping weekends
+    const startDate = new Date(first)
+    let cur = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()) - 7 * MS_PER_DAY
+
+    const areas: { x1: number; x2: number }[] = []
+    while (cur <= last) {
+      if (new Date(cur).getUTCDay() === 6) { // Saturday
+        const end = cur + 2 * MS_PER_DAY // Monday
+        // The weekend interval [cur, end) overlaps with the data interval [first, last]
+        // if the weekend starts before or at the same time the data ends, AND
+        // the weekend ends after the data starts. This correctly shades partial weekends.
+        if (cur <= last && end > first) {
+          areas.push({ x1: cur, x2: end });
+        }
+      }
+      cur += MS_PER_DAY
+    }
+    return areas
+  }, [data])
 
   // Latest measurement (from full cache) — used to determine safe/unsafe status
   // Use the latest *observed* measurement to decide safe/unsafe.
@@ -399,6 +426,9 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
       </div>
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+          {weekendAreas.map((area) => (
+            <ReferenceArea key={area.x1} x1={area.x1} x2={area.x2} fill="#e5e7eb" fillOpacity={0.3} />
+          ))}
           <CartesianGrid strokeDasharray="3 3" />
           <ReferenceLine
             y={safeLevel}
