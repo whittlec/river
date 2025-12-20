@@ -9,8 +9,9 @@ row.
 
 ## Disclaimer
 
-This is a work in progress and cannot be used to provide definitively reliable
-information!
+This app cannot safely be used to accurately decide whether or not it is truly
+safe to row on the river. Users should exercise caution and always adhere to the
+rules of their rowing club.
 
 ## TODO
 
