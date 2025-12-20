@@ -20,6 +20,7 @@ row.
     instantly on return visits.
 *   **Interactive Controls**: Users can switch between different time windows (1
     day to 1 year) to view trends.
+*   **PWA Support**: Installable on mobile devices with offline capabilities.
 
 ## Disclaimer
 
@@ -35,8 +36,6 @@ rules of their rowing club.
     also affect rowing safety.
 -   **Notifications**: Add push notifications to alert users when the river
     status changes (e.g., becomes safe to row).
--   **PWA Support**: Convert the application into a Progressive Web App for
-    better mobile experience and offline capabilities.
 -   **Dark Mode**: Add a dark theme for better visibility in low-light
     conditions.
 -   Determine the correct maximum safe rowing height (currently displays 1.9m as
