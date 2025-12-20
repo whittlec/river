@@ -42,6 +42,10 @@ type Point = {
 const DEFAULT_URL =
   'https://check-for-flooding.service.gov.uk/station-csv/8208'
 
+// York, UK
+const DEFAULT_LAT = 53.9614
+const DEFAULT_LON = -1.0739
+
 const DEFAULT_SAFE_LEVEL = 1.9
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const ONE_YEAR_MS = 365 * MS_PER_DAY
@@ -193,6 +197,29 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
         // the weekend ends after the data starts. This correctly shades partial weekends.
         if (cur <= last && end > first) {
           areas.push({ x1: cur, x2: end });
+        }
+      }
+      cur += MS_PER_DAY
+    }
+    return areas
+  }, [data])
+
+  // Calculate daylight ranges for background shading
+  const daylightAreas = useMemo(() => {
+    if (data.length === 0) return []
+    const first = data[0].timestamp
+    const last = data[data.length - 1].timestamp
+
+    const areas: { x1: number; x2: number }[] = []
+    const startDate = new Date(first)
+    let cur = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()) - MS_PER_DAY
+
+    while (cur <= last) {
+      const times = getSunTimes(cur, DEFAULT_LAT, DEFAULT_LON)
+      if (times) {
+        const { sunrise, sunset } = times
+        if (sunset > first && sunrise < last) {
+          areas.push({ x1: sunrise, x2: sunset })
         }
       }
       cur += MS_PER_DAY
@@ -426,6 +453,9 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
       </div>
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+          {daylightAreas.map((area) => (
+            <ReferenceArea key={area.x1} x1={area.x1} x2={area.x2} fill="#fcd34d" fillOpacity={0.15} />
+          ))}
           {weekendAreas.map((area) => (
             <ReferenceArea key={area.x1} x1={area.x1} x2={area.x2} fill="#e5e7eb" fillOpacity={0.3} />
           ))}
@@ -474,4 +504,35 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
       </ResponsiveContainer>
     </div>
   )
+}
+
+/**
+ * Calculates sunrise and sunset for a given date and location.
+ * @param dateMs Timestamp for the day (any time during the day)
+ * @param lat Latitude in decimal degrees
+ * @param lng Longitude in decimal degrees (negative for West)
+ */
+function getSunTimes(dateMs: number, lat: number, lng: number) {
+  const PI = Math.PI
+  const rad = PI / 180
+  const date = new Date(dateMs)
+  // Calculate Julian date for noon UTC on the given day
+  const J = (Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0) / 86400000) + 2440587.5
+  const n = J - 2451545.0
+  const M = (357.5291 + 0.98560028 * n) % 360
+  const C = 1.9148 * Math.sin(M * rad) + 0.0200 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad)
+  const lambda = (M + C + 180 + 102.9372) % 360
+  const delta = Math.asin(Math.sin(lambda * rad) * Math.sin(23.44 * rad))
+  const J_transit = 2451545.0 + n + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * lambda * rad)
+  const sin_h0 = Math.sin(-0.83 * rad) // -0.83 degrees for sunrise/sunset
+  const phi = lat * rad
+  const cos_w = (sin_h0 - Math.sin(phi) * Math.sin(delta)) / (Math.cos(phi) * Math.cos(delta))
+  if (cos_w < -1 || cos_w > 1) return null
+  const w = Math.acos(cos_w)
+  const J_rise = J_transit - (w / (2 * PI)) - (lng / 360)
+  const J_set = J_transit + (w / (2 * PI)) - (lng / 360)
+  return {
+    sunrise: (J_rise - 2440587.5) * 86400000,
+    sunset: (J_set - 2440587.5) * 86400000
+  }
 }
