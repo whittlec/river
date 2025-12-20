@@ -66,7 +66,26 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   const [points, setPoints] = useState<Point[]>([])
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
   const [cacheSize, setCacheSize] = useState<number | null>(null)
-  const [displayWindowMs, setDisplayWindowMs] = useState<number>(TWO_WEEKS_MS)
+  const [displayWindowMs, setDisplayWindowMs] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('levels-display-window')
+      if (saved !== null) {
+        const parsed = Number(saved)
+        if (!Number.isNaN(parsed)) return parsed
+      }
+    } catch (e) {
+      console.warn('Levels: failed to read display window preference', e)
+    }
+    return TWO_WEEKS_MS
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('levels-display-window', String(displayWindowMs))
+    } catch (e) {
+      console.warn('Levels: failed to save display window preference', e)
+    }
+  }, [displayWindowMs])
 
   const storageKey = `levels-cache:${url}`
 
