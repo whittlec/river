@@ -58,7 +58,7 @@ const PRESETS: { label: string; ms: number }[] = [
   { label: 'All', ms: Infinity },
 ]
 
-export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEVEL }: LevelsProps) {
+export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEVEL, width, height }: LevelsProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -417,7 +417,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ width, height }}>
       <div className={styles.header}>
         <div className={styles.leftGroup}>
           <div className={styles.statusRow}>
@@ -452,7 +452,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
         </div>
       </div>
       <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+        <LineChart data={data} margin={{ top: 20, right: 5, left: 0, bottom: 20 }}>
           {daylightAreas.map((area) => (
             <ReferenceArea key={area.x1} x1={area.x1} x2={area.x2} fill="#fcd34d" fillOpacity={0.15} />
           ))}
@@ -479,6 +479,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             domain={[0, 'auto']}
             ticks={yTicks}
             allowDataOverflow={false}
+            width={40}
           />
           <Tooltip content={(props) => <CustomTooltip {...props} safeLevel={safeLevel} />} />
           <Legend />
