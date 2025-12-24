@@ -392,6 +392,22 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     }
   }
 
+  const downloadCsv = () => {
+    if (points.length === 0) return
+    const rows = ['timestamp,height,type']
+    for (const p of points) {
+      if (p.observed !== undefined) rows.push(`${p.timestampIso},${p.observed},observed`)
+      if (p.forecast !== undefined) rows.push(`${p.timestampIso},${p.forecast},forecast`)
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'river-levels.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (loading) return <div>Loading levels…</div>
   if (error) return <div className={styles.emptyState} aria-live="assertive">Error loading CSV: <strong className={styles.errorText}>{error}</strong></div>
   if (data.length === 0) return (
@@ -474,6 +490,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
               </button>
             ))}
           </div>
+          <button onClick={downloadCsv} disabled={points.length === 0}>Export</button>
           <button onClick={() => doRefresh()} disabled={refreshing} className={styles.refreshButton}>{refreshing ? 'Updating…' : 'Update'}</button>
         </div>
       </div>
