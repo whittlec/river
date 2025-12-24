@@ -5,6 +5,11 @@
   flex-direction: column;
 }
 
+.container :global(.recharts-wrapper),
+.container :global(.recharts-wrapper) :global(*) {
+  outline: none !important;
+}
+
 .header {
   display: flex;
   justify-content: space-between;
