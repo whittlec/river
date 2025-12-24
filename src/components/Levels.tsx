@@ -246,18 +246,25 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     return areas
   }, [data])
 
-  // Latest measurement (from full cache) — used to determine safe/unsafe status
-  // Use the latest *observed* measurement to decide safe/unsafe.
-  // Forecasts should not be used for safety decisions.
-  const latestObservedPoint = useMemo(() => {
-    const observed = points.filter((p) => typeof p.observed === 'number')
-    if (observed.length === 0) return null
-    return observed.reduce((a, b) => (a.timestamp > b.timestamp ? a : b))
+  // Determine status based on the value closest to the current time.
+  // Uses observed or forecast data, whichever is available and closest to now.
+  const currentStatusPoint = useMemo(() => {
+    if (points.length === 0) return null
+    const now = Date.now()
+    // Find the point closest to now
+    const closest = points.reduce((prev, curr) =>
+      Math.abs(curr.timestamp - now) < Math.abs(prev.timestamp - now) ? curr : prev
+    )
+    // If the closest point is more than 4 hours away, consider data for "now" as missing
+    if (Math.abs(closest.timestamp - now) > 4 * 60 * 60 * 1000) return null
+    return closest
   }, [points])
 
-  const latestObservedValue = latestObservedPoint ? (latestObservedPoint.observed ?? null) : null
-  const isUnsafe = typeof latestObservedValue === 'number' ? latestObservedValue > safeLevel : false
-  const statusText = latestObservedValue === null ? 'No recent observed measurement' : (isUnsafe ? `Unsafe to row (${latestObservedValue.toFixed(2)} m)` : `Safe to row (${latestObservedValue.toFixed(2)} m)`)
+  const currentStatusValue = currentStatusPoint ? (currentStatusPoint.observed ?? currentStatusPoint.forecast ?? null) : null
+  const isUnsafe = typeof currentStatusValue === 'number' ? currentStatusValue > safeLevel : false
+  const statusText = currentStatusValue === null
+    ? 'Unknown'
+    : (isUnsafe ? `Unsafe to row (${currentStatusValue.toFixed(2)} m)` : `Safe to row (${currentStatusValue.toFixed(2)} m)`)
 
   // Parse CSV text into Point[] using the same header-detection logic
   const parseCsvToPoints = (text: string): Point[] => {
