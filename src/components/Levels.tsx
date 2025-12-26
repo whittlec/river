@@ -394,7 +394,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
 
   const downloadCsv = () => {
     if (points.length === 0) return
-    const rows = ['timestamp,height,type']
+    const rows = ['Timestamp (UTC),Height (m),Type(observed/forecast)']
     for (const p of points) {
       if (p.observed !== undefined) rows.push(`${p.timestampIso},${p.observed},observed`)
       if (p.forecast !== undefined) rows.push(`${p.timestampIso},${p.forecast},forecast`)
