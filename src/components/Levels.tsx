@@ -423,8 +423,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
 
   const fmtLastRefresh = lastRefresh ? new Date(lastRefresh).toLocaleString() : 'never'
 
-  const currentWindowLabel = PRESETS.find((p) => p.ms === displayWindowMs)?.label ?? (isFinite(displayWindowMs) ? `${Math.round(displayWindowMs / MS_PER_DAY)}d` : 'All')
-
   // Custom tooltip: show observed/forecast values for the hovered point and
   // whether that point (value) is safe to row relative to the `safeLevel`.
   function CustomTooltip({ active, payload, label, safeLevel }: any & { safeLevel: number }) {
@@ -477,7 +475,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             </div>
           )}
           <div className={styles.info}>
-            Window: <strong>{currentWindowLabel}</strong> • Last refresh: <strong>{fmtLastRefresh}</strong>
+            Last refresh: <strong>{fmtLastRefresh}</strong>
           </div>
         </div>
         <div className={styles.rightGroup}>
