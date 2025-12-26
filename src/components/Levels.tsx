@@ -65,7 +65,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [points, setPoints] = useState<Point[]>([])
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
-  const [cacheSize, setCacheSize] = useState<number | null>(null)
   const [displayWindowMs, setDisplayWindowMs] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('levels-display-window')
@@ -106,11 +105,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
       if (metaRaw) {
         const meta = JSON.parse(metaRaw) as { lastRefresh?: string; count?: number; sizeBytes?: number }
         if (meta.lastRefresh) setLastRefresh(meta.lastRefresh)
-        if (typeof meta.sizeBytes === 'number') setCacheSize(meta.sizeBytes)
-      } else if (raw) {
-        // If no meta but we have raw cache, compute approximate size and set it
-        const size = typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(raw).length : raw.length
-        setCacheSize(size)
       }
     } catch (err: unknown) {
       console.warn('Levels: failed to read cache', err)
@@ -331,7 +325,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
         console.warn('Levels: failed to save cache meta', err)
       }
       setLastRefresh(meta.lastRefresh)
-      setCacheSize(meta.sizeBytes)
     } catch (err: unknown) {
       console.warn('Levels: failed to save cache', err)
     }
