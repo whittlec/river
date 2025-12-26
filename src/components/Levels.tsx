@@ -477,7 +477,7 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             </div>
           )}
           <div className={styles.info}>
-            Showing <strong>{data.length}</strong> timestamps (window: <strong>{currentWindowLabel}</strong>) • Last refresh: <strong>{fmtLastRefresh}</strong>
+            Window: <strong>{currentWindowLabel}</strong> • Last refresh: <strong>{fmtLastRefresh}</strong>
           </div>
         </div>
         <div className={styles.rightGroup}>
