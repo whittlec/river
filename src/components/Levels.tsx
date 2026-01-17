@@ -416,35 +416,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
 
   const fmtLastRefresh = lastRefresh ? new Date(lastRefresh).toLocaleString() : 'never'
 
-  // Custom tooltip: show observed/forecast values for the hovered point and
-  // whether that point (value) is safe to row relative to the `safeLevel`.
-  function CustomTooltip({ active, payload, label, safeLevel }: any & { safeLevel: number }) {
-    if (!active || !payload || payload.length === 0) return null
-    const point: Point = payload[0].payload
-    const ts = (label as number) ?? point.timestamp
-    const dateStr = new Date(ts).toLocaleString()
-    const obs = typeof point.observed === 'number' ? point.observed : null
-    const fc = typeof point.forecast === 'number' ? point.forecast : null
-    const val = obs ?? fc ?? null
-    const isPointUnsafe = typeof val === 'number' ? val > safeLevel : null
-
-    return (
-      <div className={styles.tooltipBox}>
-        <div className={styles.tooltipRow}><strong>{dateStr}</strong></div>
-        {obs !== null && <div className={styles.tooltipRow}>Observed: <strong>{obs.toFixed(2)} m</strong></div>}
-        {fc !== null && <div className={styles.tooltipRow}>Forecast: <strong>{fc.toFixed(2)} m</strong></div>}
-        {val === null ? (
-          <div className={styles.tooltipRow}>No measurement</div>
-        ) : (
-          <div className={styles.tooltipRow}>
-            <span aria-hidden className={`${styles.statusDot} ${isPointUnsafe ? styles.unsafe : styles.safe}`} />
-            <span>{isPointUnsafe ? `Unsafe to row (${val.toFixed(2)} m)` : `Safe to row (${val.toFixed(2)} m)`}</span>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   // Y axis ticks at 0.5 increments based on visible data range (min 0)
   
 
@@ -556,6 +527,42 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
           />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  )
+}
+
+// Custom tooltip: show observed/forecast values for the hovered point and
+// whether that point (value) is safe to row relative to the `safeLevel`.
+export function CustomTooltip({ active, payload, label, safeLevel }: any & { safeLevel: number }) {
+  if (!active || !payload || payload.length === 0) return null
+  const point: Point = payload[0].payload
+  const ts = (label as number) ?? point.timestamp
+  const dateStr = new Date(ts).toLocaleString()
+  const obs = typeof point.observed === 'number' ? point.observed : null
+  const fc = typeof point.forecast === 'number' ? point.forecast : null
+  const val = obs ?? fc ?? null
+  const isPointUnsafe = typeof val === 'number' ? val > safeLevel : null
+  const sunTimes = getSunTimes(ts, DEFAULT_LAT, DEFAULT_LON)
+
+  return (
+    <div className={styles.tooltipBox}>
+      <div className={styles.tooltipRow}><strong>{dateStr}</strong></div>
+      {obs !== null && <div className={styles.tooltipRow}>Observed: <strong>{obs.toFixed(2)} m</strong></div>}
+      {fc !== null && <div className={styles.tooltipRow}>Forecast: <strong>{fc.toFixed(2)} m</strong></div>}
+      {val === null ? (
+        <div className={styles.tooltipRow}>No measurement</div>
+      ) : (
+        <div className={styles.tooltipRow}>
+          <span aria-hidden className={`${styles.statusDot} ${isPointUnsafe ? styles.unsafe : styles.safe}`} />
+          <span>{isPointUnsafe ? `Unsafe to row (${val.toFixed(2)} m)` : `Safe to row (${val.toFixed(2)} m)`}</span>
+        </div>
+      )}
+      {sunTimes && (
+        <>
+          <div className={styles.tooltipRow}>Sunrise: <strong>{new Date(sunTimes.sunrise).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>
+          <div className={styles.tooltipRow}>Sunset: <strong>{new Date(sunTimes.sunset).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>
+        </>
+      )}
     </div>
   )
 }

@@ -4,14 +4,27 @@
 import * as matchers from '@testing-library/jest-dom/matchers'
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import Levels from './Levels'
-
+import Levels, { CustomTooltip } from './Levels'
 // Mock CSS modules to avoid errors during render and provide class names
 vi.mock('./Levels.module.css', () => ({
   default: new Proxy({}, {
     get: (target, prop) => String(prop),
   }),
 }))
+
+// Mock Recharts ResponsiveContainer to ensure chart renders with dimensions in JSDOM
+vi.mock('recharts', async (importOriginal) => {
+  const Original = await importOriginal<typeof import('recharts')>()
+  const { cloneElement } = await import('react')
+  return {
+    ...Original,
+    ResponsiveContainer: ({ children }: { children: any }) => (
+      <div style={{ width: 500, height: 300 }}>
+        {cloneElement(children, { width: 500, height: 300 })}
+      </div>
+    ),
+  }
+})
 
 expect.extend(matchers)
 
@@ -184,5 +197,20 @@ describe('Levels Component', () => {
       expect(screen.getByText(/Safe to row/i)).toBeInTheDocument()
     })
     expect(screen.getByText(/1.60 m/i)).toBeInTheDocument()
+  })
+
+  it('displays daylight times in tooltip', () => {
+    const now = new Date('2024-06-21T12:00:00').getTime()
+    const payload = [{
+      payload: {
+        timestamp: now,
+        observed: 1.5
+      }
+    }]
+
+    render(<CustomTooltip active={true} payload={payload} label={now} safeLevel={2.0} />)
+
+    expect(screen.getByText(/Sunrise/i)).toBeInTheDocument()
+    expect(screen.getByText(/Sunset/i)).toBeInTheDocument()
   })
 })
