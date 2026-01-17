@@ -1,14 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import * as matchers from '@testing-library/jest-dom/matchers'
+import '@testing-library/jest-dom/vitest'
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import Levels, { CustomTooltip } from './Levels'
 // Mock CSS modules to avoid errors during render and provide class names
 vi.mock('./Levels.module.css', () => ({
   default: new Proxy({}, {
-    get: (target, prop) => String(prop),
+    get: (_target, prop) => String(prop),
   }),
 }))
 
@@ -25,8 +25,6 @@ vi.mock('recharts', async (importOriginal) => {
     ),
   }
 })
-
-expect.extend(matchers)
 
 // Mock ResizeObserver for Recharts
 vi.stubGlobal('ResizeObserver', class ResizeObserver {
@@ -204,6 +202,7 @@ describe('Levels Component', () => {
     const payload = [{
       payload: {
         timestamp: now,
+        timestampIso: new Date(now).toISOString(),
         observed: 1.5
       }
     }]
