@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Papa from 'papaparse'
 import {
   LineChart,
@@ -61,6 +61,7 @@ const PRESETS: { label: string; ms: number }[] = [
 export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEVEL, width, height }: LevelsProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [points, setPoints] = useState<Point[]>([])
@@ -359,6 +360,46 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     return out
   }
 
+  const mergeUploadedPoints = (existing: Point[], uploaded: Point[]) => {
+    const map = new Map<number, Point>()
+    for (const p of existing) map.set(p.timestamp, { ...p })
+
+    for (const up of uploaded) {
+      const ts = up.timestamp
+      const cur = map.get(ts)
+
+      if (!cur) {
+        map.set(ts, { ...up })
+        continue
+      }
+
+      // Rule: Data already known to the app should take preference to uploaded data,
+      // except where uploaded data is observed rather than forecast -
+      // uploaded observed data should win out over existing forecast data.
+
+      // Handle Observed
+      if (up.observed !== undefined) {
+        // If existing has no observed, take uploaded
+        if (cur.observed === undefined) {
+          cur.observed = up.observed
+          // If we accept observed, it supersedes any forecast
+          if (cur.forecast !== undefined) delete cur.forecast
+        }
+        // If existing has observed, keep it (do nothing)
+      }
+
+      // Handle Forecast
+      if (up.forecast !== undefined) {
+        // Only accept uploaded forecast if we have absolutely nothing for this point
+        if (cur.forecast === undefined && cur.observed === undefined) {
+          cur.forecast = up.forecast
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp)
+  }
+
   // Refresh action: fetch CSV from server and merge into local cache
   async function doRefresh() {
     setRefreshing(true)
@@ -399,6 +440,27 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
     a.download = 'river-levels.csv'
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const text = evt.target?.result
+      if (typeof text === 'string') {
+        const uploaded = parseCsvToPoints(text)
+        setPoints((prev) => {
+          const merged = mergeUploadedPoints(prev, uploaded)
+          const pruned = prunePoints(merged, ONE_YEAR_MS)
+          saveCache(pruned)
+          return pruned
+        })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   if (loading) return <div>Loading levels…</div>
@@ -460,6 +522,19 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
           <button onClick={downloadCsv} disabled={points.length === 0} title="Export CSV" aria-label="Export CSV">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </button>
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+            data-testid="csv-upload-input"
+          />
+          <button onClick={() => fileInputRef.current?.click()} title="Import CSV" aria-label="Import CSV">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
             </svg>
           </button>
           <button

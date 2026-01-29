@@ -197,6 +197,56 @@ describe('Levels Component', () => {
     expect(screen.getByText(/1.60 m/i)).toBeInTheDocument()
   })
 
+  it('merges uploaded data correctly preferring existing data except when upgrading forecast to observed', async () => {
+    const now = Date.now()
+    const existingTime = now - 1000 * 60 * 60
+    const newTime = now
+
+    const t1 = existingTime + 10000
+    const t2 = existingTime
+    const t3 = existingTime - 10000
+    const t4 = newTime
+
+    // Initial state:
+    // t1: Observed 1.0
+    // t2: Forecast 2.0
+    // t3: Forecast 3.0
+    const initialPoints = [
+      { timestamp: t1, timestampIso: new Date(t1).toISOString(), observed: 1.0 },
+      { timestamp: t2, timestampIso: new Date(t2).toISOString(), forecast: 2.0 },
+      { timestamp: t3, timestampIso: new Date(t3).toISOString(), forecast: 3.0 },
+    ]
+
+    localStorage.setItem(`levels-cache:https://example.com/data.csv`, JSON.stringify(initialPoints))
+
+    render(<Levels url="https://example.com/data.csv" width={500} height={300} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/1.00 m/i)).toBeInTheDocument()
+    })
+
+    // Upload:
+    // t1: Observed 1.5 (Should be ignored, existing Observed 1.0 wins)
+    // t2: Observed 2.5 (Should win over existing Forecast 2.0)
+    // t3: Forecast 3.5 (Should be ignored, existing Forecast 3.0 wins)
+    // t4: Observed 4.0 (New point, should be added)
+    const csvContent = `timestamp,height,type
+${new Date(t1).toISOString()},1.5,observed
+${new Date(t2).toISOString()},2.5,observed
+${new Date(t3).toISOString()},3.5,forecast
+${new Date(t4).toISOString()},4.0,observed`
+
+    const file = new File([csvContent], 'upload.csv', { type: 'text/csv' })
+    const input = screen.getByTestId('csv-upload-input')
+    fireEvent.change(input, { target: { files: [file] } })
+
+    await waitFor(() => {
+      // t4 is the latest point, so it should be displayed as current status
+      expect(screen.getByText(/4.00 m/i)).toBeInTheDocument()
+      expect(screen.getByText(/Unsafe to row/i)).toBeInTheDocument()
+    })
+  })
+
   it('displays daylight times in tooltip', () => {
     const now = new Date('2024-06-21T12:00:00').getTime()
     const payload = [{
