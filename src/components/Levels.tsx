@@ -63,6 +63,8 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [isImportExportOpen, setImportExportOpen] = useState(false)
+  const importExportMenuRef = useRef<HTMLDivElement>(null)
   const [runtimeError, setRuntimeError] = useState<string | null>(null)
   const [points, setPoints] = useState<Point[]>([])
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
@@ -86,6 +88,18 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
       console.warn('Levels: failed to save display window preference', e)
     }
   }, [displayWindowMs])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (importExportMenuRef.current && !importExportMenuRef.current.contains(event.target as Node)) {
+        setImportExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const storageKey = `levels-cache:${url}`
 
@@ -488,6 +502,47 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        .importExportContainer {
+          position: relative;
+          display: flex;
+        }
+        .importExportMain {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+          padding: 0.5rem 0.5rem;
+        }
+        .importExportCaret {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          border-left-width: 0;
+          padding: 0.5rem 0.2rem;
+        }
+        .importExportMenu {
+          position: absolute;
+          top: calc(100% + 4px);
+          right: 0;
+          background-color: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 4px;
+          z-index: 10;
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          padding: 0.25rem;
+        }
+        .importExportMenu button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+          text-align: left;
+          padding: 0.5rem;
+          background: none;
+          border: none;
+          cursor: pointer;
+          border-radius: 2px;
+        }
+        .importExportMenu button:hover {
+          background-color: #f3f4f6;
+        }
       `}</style>
       <div className={styles.header}>
         <div className={styles.leftGroup}>
@@ -519,11 +574,34 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
               </button>
             ))}
           </div>
-          <button onClick={downloadCsv} disabled={points.length === 0} title="Export CSV" aria-label="Export CSV">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-          </button>
+          <div className="importExportContainer" ref={importExportMenuRef}>
+            <button
+              onClick={downloadCsv}
+              disabled={points.length === 0}
+              title="Export CSV"
+              aria-label="Export CSV"
+              className="importExportMain"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </button>
+            <button onClick={() => setImportExportOpen((o) => !o)} className="importExportCaret" title="More actions" aria-label="More actions">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            {isImportExportOpen && (
+              <div className="importExportMenu">
+                <button onClick={() => { fileInputRef.current?.click(); setImportExportOpen(false); }} title="Import CSV" aria-label="Import CSV">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <span>Import</span>
+                </button>
+              </div>
+            )}
+          </div>
           <input
             type="file"
             accept=".csv"
@@ -532,11 +610,6 @@ export default function Levels({ url = DEFAULT_URL, safeLevel = DEFAULT_SAFE_LEV
             onChange={handleFileChange}
             data-testid="csv-upload-input"
           />
-          <button onClick={() => fileInputRef.current?.click()} title="Import CSV" aria-label="Import CSV">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '1.2em', height: '1.2em' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-          </button>
           <button
             onClick={() => doRefresh()}
             disabled={refreshing}
